@@ -1,5 +1,9 @@
 const API = "http://localhost:3000/api";
 
+// Store dashboard blogs
+let dashboardBlogsData = [];
+
+
 // ===============================
 // REGISTER
 // ===============================
@@ -86,8 +90,11 @@ if (blogForm) {
   blogForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const title = document.getElementById("blogTitle").value;
-    const content = document.getElementById("blogContent").value;
+    const title = document.getElementById("blogTitle").value.trim();
+    const content = document.getElementById("blogContent").value.trim();
+
+    const categoryElement = document.getElementById("blogCategory");
+    const category = categoryElement ? categoryElement.value : "Others";
 
     const token = sessionStorage.getItem("token");
 
@@ -103,7 +110,7 @@ if (blogForm) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ title, content })
+        body: JSON.stringify({ title, content, category })
       });
 
       const data = await response.json();
@@ -118,6 +125,138 @@ if (blogForm) {
       alert("Cannot connect to backend server");
     }
   });
+}
+
+
+// ===============================
+// RENDER BLOGS
+// ===============================
+
+function renderBlogs(container, blogs, showDelete = false, token = null) {
+
+  if (!container) return;
+
+  container.replaceChildren();
+
+  if (blogs.length === 0) {
+    container.textContent = "No blogs found";
+    return;
+  }
+
+  blogs.forEach((blog) => {
+
+    const card = document.createElement("div");
+    card.className = "blog-card";
+
+    // Blog Title
+    const heading = document.createElement("h3");
+    heading.textContent = blog.title;
+
+    // Blog Category
+    const category = document.createElement("p");
+    category.className = "blog-category";
+    category.textContent = "Category: " + (blog.category || "Others");
+
+    // Blog Content
+    const paragraph = document.createElement("p");
+
+    paragraph.textContent =
+      blog.content.length > 150
+        ? blog.content.substring(0, 150) + "..."
+        : blog.content;
+
+    card.append(heading, category, paragraph);
+
+
+    // READ MORE BUTTON
+
+    const readMore = document.createElement("a");
+
+    readMore.textContent = "Read More";
+    readMore.href = `blog-details.html?id=${encodeURIComponent(blog._id)}`;
+    readMore.className = "btn";
+
+    card.appendChild(readMore);
+
+
+    // EDIT BUTTON
+
+    if (showDelete) {
+
+      const editButton = document.createElement("button");
+
+      editButton.textContent = "Edit";
+      editButton.className = "edit-btn";
+
+      editButton.addEventListener("click", () => {
+
+        window.location.href =
+          `edit-blog.html?id=${encodeURIComponent(blog._id)}`;
+
+      });
+
+      card.appendChild(editButton);
+    }
+
+
+    // DELETE BUTTON
+
+    if (showDelete) {
+
+      const button = document.createElement("button");
+
+      button.textContent = "Delete";
+      button.className = "delete-btn";
+
+      button.addEventListener("click", async () => {
+
+        const confirmDelete = confirm(
+          "Are you sure you want to delete this blog?"
+        );
+
+        if (!confirmDelete) return;
+
+        try {
+
+          const deleteResponse = await fetch(
+            `${API}/blogs/${encodeURIComponent(blog._id)}`,
+            {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${token}`
+              }
+            }
+          );
+
+          const data = await deleteResponse.json();
+
+          if (deleteResponse.ok) {
+
+            alert(data.message);
+
+            await displayBlogs("dashboardBlogs", "/blogs/my", true);
+
+          } else {
+
+            alert(data.message || "Unable to delete blog");
+
+          }
+
+        } catch (error) {
+
+          alert("Cannot connect to backend server");
+
+        }
+
+      });
+
+      card.appendChild(button);
+    }
+
+    container.appendChild(card);
+
+  });
+
 }
 
 
@@ -159,103 +298,11 @@ async function displayBlogs(elementId, endpoint, showDelete = false) {
 
     const blogs = await response.json();
 
-    container.replaceChildren();
-
-    if (blogs.length === 0) {
-      container.textContent = "No blogs available";
-      return;
+    if (elementId === "dashboardBlogs") {
+      dashboardBlogsData = blogs;
     }
 
-    blogs.forEach((blog) => {
-
-      const card = document.createElement("div");
-      card.className = "blog-card";
-
-      // Blog Title
-      const heading = document.createElement("h3");
-      heading.textContent = blog.title;
-
-      // Blog Content
-      const paragraph = document.createElement("p");
-
-      paragraph.textContent =
-        blog.content.length > 150
-          ? blog.content.substring(0, 150) + "..."
-          : blog.content;
-
-      card.append(heading, paragraph);
-
-
-      // READ MORE BUTTON
-      const readMore = document.createElement("a");
-
-      readMore.textContent = "Read More";
-
-      readMore.href = `blog-details.html?id=${encodeURIComponent(blog._id)}`;
-
-      readMore.className = "btn";
-
-      card.appendChild(readMore);
-
-
-      // DELETE BUTTON
-      if (showDelete) {
-
-        const button = document.createElement("button");
-
-        button.textContent = "Delete";
-
-        button.className = "delete-btn";
-
-        button.addEventListener("click", async () => {
-
-          const confirmDelete = confirm(
-            "Are you sure you want to delete this blog?"
-          );
-
-          if (!confirmDelete) return;
-
-          try {
-
-            const deleteResponse = await fetch(
-              `${API}/blogs/${blog._id}`,
-              {
-                method: "DELETE",
-                headers: {
-                  Authorization: `Bearer ${token}`
-                }
-              }
-            );
-
-            const data = await deleteResponse.json();
-
-            if (deleteResponse.ok) {
-
-              alert(data.message);
-
-              displayBlogs("dashboardBlogs", "/blogs/my", true);
-
-            } else {
-
-              alert(data.message || "Unable to delete blog");
-
-            }
-
-          } catch (error) {
-
-            alert("Cannot connect to backend server");
-
-          }
-
-        });
-
-        card.appendChild(button);
-
-      }
-
-      container.appendChild(card);
-
-    });
+    renderBlogs(container, blogs, showDelete, token);
 
   } catch (error) {
 
@@ -265,6 +312,63 @@ async function displayBlogs(elementId, endpoint, showDelete = false) {
 
   }
 
+}
+
+
+// ===============================
+// SEARCH + CATEGORY FILTER
+// ===============================
+
+const searchInput = document.getElementById("searchInput");
+const categoryFilter = document.getElementById("categoryFilter");
+
+function filterBlogs() {
+
+  const searchTerm = searchInput
+    ? searchInput.value.toLowerCase().trim()
+    : "";
+
+  const selectedCategory = categoryFilter
+    ? categoryFilter.value
+    : "All";
+
+  const filteredBlogs = dashboardBlogsData.filter((blog) => {
+
+    const matchesSearch = (blog.title || "")
+      .toLowerCase()
+      .includes(searchTerm);
+
+    const matchesCategory =
+      selectedCategory === "All" ||
+      (blog.category || "Others") === selectedCategory;
+
+    return matchesSearch && matchesCategory;
+
+  });
+
+  const container = document.getElementById("dashboardBlogs");
+
+  renderBlogs(
+    container,
+    filteredBlogs,
+    true,
+    sessionStorage.getItem("token")
+  );
+
+}
+
+
+// Search Event
+
+if (searchInput) {
+  searchInput.addEventListener("input", filterBlogs);
+}
+
+
+// Category Filter Event
+
+if (categoryFilter) {
+  categoryFilter.addEventListener("change", filterBlogs);
 }
 
 
@@ -297,11 +401,8 @@ async function loadBlogDetails() {
   const blogId = params.get("id");
 
   if (!blogId) {
-
     container.textContent = "Blog ID not found";
-
     return;
-
   }
 
   try {
@@ -313,41 +414,30 @@ async function loadBlogDetails() {
     const blog = await response.json();
 
     if (!response.ok) {
-
       throw new Error(blog.message || "Blog not found");
-
     }
 
     container.replaceChildren();
 
-    // Blog Title
     const title = document.createElement("h2");
-
     title.textContent = blog.title;
 
+    const category = document.createElement("p");
+    category.textContent = "Category: " + (blog.category || "Others");
 
-    // Blog Content
     const content = document.createElement("p");
-
     content.textContent = blog.content;
 
-
-    // Author
     const author = document.createElement("p");
-
     author.textContent =
       "Author: " + (blog.author?.name || "Unknown");
 
-
-    // Published Date
     const date = document.createElement("p");
-
     date.textContent =
       "Published: " +
       new Date(blog.createdAt).toLocaleDateString();
 
-
-    container.append(title, content, author, date);
+    container.append(title, category, content, author, date);
 
   } catch (error) {
 
@@ -360,6 +450,140 @@ async function loadBlogDetails() {
 }
 
 loadBlogDetails();
+
+
+// ===============================
+// EDIT BLOG - LOAD EXISTING DATA
+// ===============================
+
+const editBlogForm = document.getElementById("editBlogForm");
+
+if (editBlogForm) {
+
+  const token = sessionStorage.getItem("token");
+
+  const params = new URLSearchParams(window.location.search);
+  const blogId = params.get("id");
+
+  const editTitle = document.getElementById("editTitle");
+  const editContent = document.getElementById("editContent");
+  const editCategory = document.getElementById("editCategory");
+
+  if (!token) {
+
+    alert("Please login first");
+    window.location.href = "login.html";
+
+  } else if (!blogId) {
+
+    alert("Blog ID not found");
+    window.location.href = "dashboard.html";
+
+  } else {
+
+    // LOAD EXISTING BLOG
+
+    async function loadBlog() {
+
+      try {
+
+        const response = await fetch(
+          `${API}/blogs/${encodeURIComponent(blogId)}`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          alert(data.message || "Unable to load blog");
+          window.location.href = "dashboard.html";
+          return;
+        }
+
+        const blog = data.blog || data;
+
+        editTitle.value = blog.title || "";
+        editContent.value = blog.content || "";
+
+        if (editCategory) {
+          editCategory.value = blog.category || "Others";
+        }
+
+      } catch (error) {
+
+        console.error("Load Blog Error:", error);
+        alert("Cannot connect to backend server");
+
+      }
+
+    }
+
+    loadBlog();
+
+
+    // UPDATE BLOG
+
+    editBlogForm.addEventListener("submit", async (e) => {
+
+      e.preventDefault();
+
+      const title = editTitle.value.trim();
+      const content = editContent.value.trim();
+
+      const category = editCategory
+        ? editCategory.value
+        : "Others";
+
+      if (!title || !content) {
+        alert("Please enter title and content");
+        return;
+      }
+
+      try {
+
+        const response = await fetch(
+          `${API}/blogs/${encodeURIComponent(blogId)}`,
+          {
+            method: "PUT",
+
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`
+            },
+
+            body: JSON.stringify({
+              title,
+              content,
+              category
+            })
+          }
+        );
+
+        const data = await response.json();
+
+        if (response.ok) {
+
+          alert(data.message || "Blog updated successfully!");
+
+          window.location.href = "dashboard.html";
+
+        } else {
+
+          alert(data.message || "Blog update failed");
+
+        }
+
+      } catch (error) {
+
+        console.error("Update Blog Error:", error);
+        alert("Cannot connect to backend server");
+
+      }
+
+    });
+
+  }
+
+}
 
 
 // ===============================
