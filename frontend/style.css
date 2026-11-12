@@ -113,6 +113,35 @@ white-space: pre-wrap;
 color: #777;
 }
 
+.profile-card {
+background: white;
+padding: 20px;
+margin: 24px 0;
+border-radius: 8px;
+box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+}
+
+.profile-card h2 {
+color: #263b80;
+margin-bottom: 8px;
+}
+
+.profile-card p {
+margin: 4px 0;
+}
+
+.card-actions {
+display: flex;
+flex-wrap: wrap;
+align-items: center;
+gap: 12px;
+margin-top: 8px;
+}
+
+.card-actions .btn {
+margin-top: 0;
+}
+
 .form-container {
 background: white;
 width: 90%;
@@ -156,13 +185,26 @@ margin-top: 15px;
 color: #263b80;
 }
 
+.edit-btn,
 .delete-btn {
-background: #dc2626;
 color: white;
 border: none;
-padding: 8px 12px;
-border-radius: 4px;
+padding: 10px 16px;
+border-radius: 5px;
 cursor: pointer;
+font-size: 15px;
+}
+
+.edit-btn {
+background: #2563eb;
+}
+
+.edit-btn:hover {
+background: #1d4ed8;
+}
+
+.delete-btn {
+background: #dc2626;
 }
 
 .delete-btn:hover {

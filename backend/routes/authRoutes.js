@@ -2,7 +2,20 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/user");
+const auth = require("../middleware/auth");
 const router = express.Router();
+
+router.get("/me", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).select("name email").lean();
+    if (!user) return res.status(404).json({ message: "User not found" });
+    return res.json({ id: req.userId, name: user.name, email: user.email });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Could not load your profile" });
+  }
+});
+
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password } = req.body || {};

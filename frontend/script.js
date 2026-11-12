@@ -1,5 +1,32 @@
 const API = "http://localhost:3000/api";
 
+const privatePage = ["dashboard.html", "create-blog.html", "edit-blog.html"]
+  .includes(window.location.pathname.split("/").pop());
+const pageToken = sessionStorage.getItem("token");
+
+if (privatePage && !pageToken) {
+  window.location.replace("login.html");
+}
+
+if (privatePage && pageToken && !document.getElementById("dashboardBlogs")) {
+  verifyPrivatePageToken(pageToken);
+}
+
+async function verifyPrivatePageToken(token) {
+  try {
+    const response = await fetch(`${API}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (response.status === 401 || response.status === 404) {
+      sessionStorage.removeItem("token");
+      window.location.replace("login.html");
+    }
+  } catch (error) {
+    console.error("Could not verify login:", error);
+  }
+}
+
 // Store dashboard blogs
 let dashboardBlogsData = [];
 
@@ -176,7 +203,9 @@ function renderBlogs(container, blogs, showDelete = false, token = null) {
     readMore.href = `blog-details.html?id=${encodeURIComponent(blog._id)}`;
     readMore.className = "btn";
 
-    card.appendChild(readMore);
+    const actions = document.createElement("div");
+    actions.className = "card-actions";
+    actions.appendChild(readMore);
 
 
     // EDIT BUTTON
@@ -195,7 +224,7 @@ function renderBlogs(container, blogs, showDelete = false, token = null) {
 
       });
 
-      card.appendChild(editButton);
+      actions.appendChild(editButton);
     }
 
 
@@ -250,9 +279,10 @@ function renderBlogs(container, blogs, showDelete = false, token = null) {
 
       });
 
-      card.appendChild(button);
+      actions.appendChild(button);
     }
 
+    card.appendChild(actions);
     container.appendChild(card);
 
   });
@@ -383,7 +413,38 @@ displayBlogs("blogList", "/blogs");
 // DASHBOARD
 // ===============================
 
-displayBlogs("dashboardBlogs", "/blogs/my", true);
+if (document.getElementById("dashboardBlogs") && pageToken) {
+  displayBlogs("dashboardBlogs", "/blogs/my", true);
+  loadUserProfile(pageToken);
+}
+
+async function loadUserProfile(token) {
+  const nameElement = document.getElementById("profileName");
+  const emailElement = document.getElementById("profileEmail");
+  if (!nameElement || !emailElement) return;
+
+  try {
+    const response = await fetch(`${API}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await response.json();
+
+    if (response.status === 401 || response.status === 404) {
+      sessionStorage.removeItem("token");
+      window.location.replace("login.html");
+      return;
+    }
+
+    if (!response.ok) throw new Error(data.message || "Could not load your profile");
+
+    nameElement.textContent = data.name;
+    emailElement.textContent = data.email;
+  } catch (error) {
+    nameElement.textContent = "Profile unavailable";
+    emailElement.textContent = error.message;
+    console.error(error);
+  }
+}
 
 
 // ===============================
